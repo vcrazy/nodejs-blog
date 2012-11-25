@@ -43,7 +43,7 @@ app.get('/', function(req, res){
 
 // Get /scripts/:src
 app.get('/scripts/:src', function(req, res){
-	fs.readFile('./' + req.params.src, function(err, html){
+	fs.readFile('./scripts/' + req.params.src, function(err, html){
 		res.writeHeader(200, {"Content-Type": "text/javascript"});
 		res.write(html);
 		res.end();
@@ -54,6 +54,15 @@ app.get('/scripts/:src', function(req, res){
 app.get('/styles/:src', function(req, res){
 	fs.readFile('./' + req.params.src, function(err, html){
 		res.writeHeader(200, {"Content-Type": "text/css"});
+		res.write(html);
+		res.end();
+	});
+});
+
+// Get /templates/:src
+app.get('/templates/:src', function(req, res){
+	fs.readFile('./templates/' + req.params.src, function(err, html){
+		res.writeHeader(200, {"Content-Type": "text/html"});
 		res.write(html);
 		res.end();
 	});

@@ -22,7 +22,7 @@ exports.createPost = function(req, res){
 // Update post
 exports.updatePost = function(req, res){
 	var data = req.body;
-	data._id = (req.params.id);
+	data._id = objId(req.params.id);
 
 	if(validate(data.text, res)){
 		db.posts.save(data, function(){
@@ -51,8 +51,8 @@ exports.getOnePostWithComments = function(req, res){
 			data.comments = comments;
 
 			res.send(data);
-		});
-	}).sort({date: 1});
+		}).sort({date: 1});
+	});
 };
 
 // Comment post

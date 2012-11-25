@@ -1,4 +1,6 @@
 $(document).ready(function(){
+	var tmpl = {};
+
 	// in the beginning get all posts
 	getAllPosts();
 
@@ -14,22 +16,7 @@ $(document).ready(function(){
 			return;
 		}
 
-		$('#posts').append(
-			'<div class="post" id="post_' + post._id + '">' +
-				'<span class="post-text">' + post.text + '</span> ' +
-				'<span class="post-id">' + post._id + '</span> ' +
-				'<a href="#" class="show-comments">Show this post with its comments</a> ' +
-				'<a href="#" class="edit-post">Edit</a> ' +
-				'<a href="#" class="delete-post">Delete</a> ' +
-				'<form class="add-comment" method="post" action="/comments/' + post._id + '">' +
-					'Add comment: <br />' +
-					'<textarea name="text"></textarea> <br />' +
-					'<input type="hidden" name="commentLevel" value="1" />' +
-					'<input type="submit" />' +
-				'</form>' +
-				'<div class="comments"></div>' +
-			'</div>'
-		);
+		loadTemplate('posts', [post], '#posts');
 	}
 
 	function appendComments(all_comments, post_id){
@@ -49,36 +36,12 @@ $(document).ready(function(){
 			return;
 		}
 
+		comment.commentLevel = comment.commentLevel * 1 + 1;
+
 		if(comment.commentLevel == 1){ // append to post
-			$('#post_' + comment.postId + ' .comments').append(
-				'<div class="comment" id="comment_' + comment._id + '">' + comment.text +
-					'<span class="post-id">' + comment.postId + '</span> ' +
-					'<span class="comment-id">' + comment._id + '</span> ' +
-					'<a href="#" class="delete-comment">Delete</a> ' +
-					'<form class="add-comment" method="post" action="/comments/' + comment.postId + '">' +
-						'Add comment: <br />' +
-						'<textarea name="text"></textarea> <br />' +
-						'<input type="hidden" name="parentId" value="' + comment._id + '" />' +
-						'<input type="hidden" name="commentLevel" value="' + (comment.commentLevel * 1 + 1) + '" />' +
-						'<input type="submit" />' +
-					'</form>' +
-				'</div>'
-			);
+			loadTemplate('comments', [comment], '#post_' + comment.postId + ' .comments');
 		}else{ // append to comment
-			$('#comment_' + comment.parentId).append(
-				'<div class="comment" id="comment_' + comment._id + '">' + comment.text +
-					'<span class="post-id">' + comment.postId + '</span> ' +
-					'<span class="comment-id">' + comment._id + '</span> ' +
-					'<a href="#" class="delete-comment">Delete</a> ' +
-					'<form class="add-comment" method="post" action="/comments/' + comment.postId + '">' +
-						'Add comment: <br />' +
-						'<textarea name="text"></textarea> <br />' +
-						'<input type="hidden" name="parentId" value="' + comment._id + '" />' +
-						'<input type="hidden" name="commentLevel" value="' + (comment.commentLevel * 1 + 1) + '" />' +
-						'<input type="submit" />' +
-					'</form>' +
-				'</div>'
-			);
+			loadTemplate('comments', [comment], '#comment_' + comment.parentId);
 		}
 	}
 
@@ -119,7 +82,7 @@ $(document).ready(function(){
 		}
 
 		$.ajax({
-			url: '/posts/' + $(this).parent().find('.post-id').text(),
+			url: '/posts/' + $(this).parent().find('.post-id:first').text(),
 			type: 'DELETE',
 			success: function(){
 				getAllPosts();
@@ -131,12 +94,13 @@ $(document).ready(function(){
 
 	// Comment post
 	$('.add-comment').live('submit', function(){
-		addComment(
-			$(this).attr('action').split('/').pop(), {
+		var comment = {
 			text: $(this).find('textarea').val(),
 			parentId: $(this).find('input[name="parentId"]').val(),
 			commentLevel: $(this).find('input[name="commentLevel"]').val()
-		});
+		};
+
+		addComment($(this).attr('action').split('/').pop(), comment);
 
 		$(this).find('textarea').val('');
 
@@ -144,18 +108,11 @@ $(document).ready(function(){
 	});
 
 	$('.edit-post').live('click', function(){
-		var textElement = $(this).parent().find('.post-text'),
+		var textElement = $(this).parent().find('.post-text:first'),
 			text = $(textElement).text(),
-			id = $(this).parent().find('.post-id').text();
+			id = $(this).parent().find('.post-id:first').text();
 
-		$(textElement).html(
-			'<form method="post" action="/posts/' + id + '" class="edit-post-form">' +
-				'<textarea name="text">' + text + '</textarea>' +
-				'<input type="hidden" name="previousText" value="' + text + '" />' +
-				'<input type="button" class="back" value="Back" />' +
-				'<input type="submit" />' +
-			'</form>'
-		);
+		loadTemplate('edit_post', [{id: id, text: text}], '#post_' + id + ' .post-text:first');
 
 		$(this).hide();
 
@@ -174,6 +131,7 @@ $(document).ready(function(){
 	$('.show-comments').live('click', function(){
 		var postId = $(this).parent().find('.post-id').text();
 
+		$('.add-post').hide();
 		showPostComments(postId);
 
 		return false;
@@ -184,22 +142,21 @@ $(document).ready(function(){
 			return false;
 		}
 
-		var postId = $(this).parent().find('.post-id:first').text(),
-			commentId = $(this).parent().find('.comment-id:first').text();
+		var commentId = $(this).parent().find('.comment-id:first').text();
 
 		$.ajax({
 			url: '/comments/' + commentId,
-			type: 'DELETE',
-			success: function(){
-				showPostComments(postId);
-			}
+			type: 'DELETE'
 		});
+
+		$(this).parent().remove();
 
 		return false;
 	});
 
-	$('.show-all-posts').click(function(){
+	$('.show-all-posts').live('click', function(){
 		getAllPosts();
+		$('.add-post').show();
 
 		return false;
 	});
@@ -211,7 +168,16 @@ $(document).ready(function(){
 
 		$.get('/posts/' + id, {}, function(data){
 			if(data.post){
-				setPostsAndComments([data.post], data.comments);
+				loadTemplate('post', data.post, '#posts');
+
+				$.each(data.comments, function(index, comment){
+					comment.commentLevel = comment.commentLevel * 1 + 1;
+					if(comment.commentLevel == 2){
+						loadTemplate('comments', [comment], '#post_' + data.post._id + ' .comments');
+					}else{
+						loadTemplate('comments', [comment], '#comment_' + comment.parentId);
+					}
+				});
 			}else{
 				getAllPosts();
 			}
@@ -230,16 +196,53 @@ $(document).ready(function(){
 
 	function addComment(id, data){
 		$.post('/comments/' + id, data, function(comment){
-			showPostComments(id);
+			if(data.parentId){
+				loadTemplate('comments', [comment], '#comment_' + data.parentId);
+			}else{
+				loadTemplate('comments', [comment], '#post_' + id);
+			}
 		});
 	}
 
 	// List all posts
 	function getAllPosts(){
 		$('#posts').empty();
+		$('#add-post').show();
 
 		$.get('/posts', {}, function(posts){
-			setPostsAndComments(posts, null);
+			loadTemplate('posts', posts, '#posts');
 		});
 	}
+
+	function loadTemplate(tplName, data, appendTo){
+		if(tmpl[tplName]){
+			if(appendTo){
+				$.tmpl(tmpl[tplName], data).appendTo(appendTo);
+			}
+			return;
+		}
+
+		$.ajax({
+			dataType: 'html',
+			url: '/templates/' + tplName + '.html',
+			success: function(tpl){
+				tmpl[tplName] = tpl;
+				if(appendTo){
+					$.tmpl(tpl, data).appendTo(appendTo);
+				}
+			}
+		});
+	}
+
+	(function(){
+		var templates = ['add_post', 'comments', 'posts', 'post', 'edit_post'];
+
+		$.each(templates, function(index, tpl){
+			if(index == 0){
+				loadTemplate(tpl, [{}], '#home');
+			}else{
+				loadTemplate(tpl);
+			}
+		});
+	})();
 });

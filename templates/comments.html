@@ -1,0 +1,13 @@
+<div class="comment" id="comment_${_id}">
+	${text}
+	<span class="post-id">${postId}</span>
+	<span class="comment-id">${_id}</span>
+	<a href="#" class="delete-comment">Delete</a>
+	<form class="add-comment" method="post" action="/comments/${postId}">
+		Add comment: <br />
+		<textarea name="text"></textarea> <br />
+		<input type="hidden" name="parentId" value="${_id}" />
+		<input type="hidden" name="commentLevel" value="${commentLevel}" />
+		<input type="submit" />
+	</form>
+</div>
