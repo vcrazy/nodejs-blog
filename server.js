@@ -1,12 +1,11 @@
 var port = 3000,
 	express = require('express'),
+	blog = require('./routes/blog'),
 	app = express();
 
 // REST
 // List all posts
-app.get('/posts', function(req, res){
-    res.send({name: 'Get all posts'});
-});
+app.get('/posts', blog.findAll);
 
 // List one post with its comments
 app.get('/posts/:id', function(req, res){
@@ -33,6 +32,12 @@ app.post('/comments/:id', function(req, res){
 	res.send({name: 'Comment post'});
 });
 // END OF REST
+
+// FUNCTIONS
+function getPosts(req, res){
+    res.send({name: 'Get all posts'});
+};
+// END OF FUNCTIONS
 
 app.listen(port);
 console.log('Listening on port ' + port + '...');
