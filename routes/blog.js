@@ -35,15 +35,15 @@ exports.updatePost = function(req, res){
 exports.deletePost = function(req, res){
 	var result = 0;
 
-	db.posts.remove({_id: objId(req.params.id)}, true, function(res){
-		result += res;
+	db.posts.remove({_id: objId(req.params.id)}, true, function(err, success){
+		result += !err;
 
 		if(result == 2){
 			res.send({success: 1});
 		}
 	});
-	db.comments.remove({postId: req.params.id}, function(res){
-		result += res;
+	db.comments.remove({postId: req.params.id}, function(err, success){
+		result += !err;
 
 		if(result == 2){
 			res.send({success: 1});
@@ -90,7 +90,15 @@ exports.createComment = function(req, res){
 
 // Delete comment
 exports.deleteComment = function(req, res){
-	db.comments.remove({_id: req.params.id}, true);
+	db.comments.remove({_id: objId(req.params.id)}, function(err, success){
+		if(!success){
+			return finishDeleteComment(res);
+		}
+
+		db.comments.find({parentId: req.params.id}, {_id: 1}, function(err, comments){
+			return findAndRemove(comments, res);
+		});
+	});
 };
 
 function validate(field, res){
@@ -105,4 +113,32 @@ function validate(field, res){
 
 function objId(id){
 	return new db.bson.ObjectID(id);
+}
+
+function findAndRemove(comments, res){
+	if(!comments.length){
+		return finishDeleteComment(res);
+	}
+
+	var arr = [],
+		arrIds = [];
+
+	for(var i in comments){
+		arr.push(comments[i]._id);
+		arrIds.push(objId(comments[i]._id));
+	}
+
+	db.comments.remove({$in: {_id: arrIds}}, function(err, success){
+		if(!success){
+			return finishDeleteComment(res);
+		}
+
+		db.comments.find({$in: {parentId: arr}}, {_id: 1}, function(err, comments){
+			findAndRemove(comments, res);
+		});
+	});
+}
+
+function finishDeleteComment(res){
+	res.send({});
 }
