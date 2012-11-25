@@ -5,6 +5,8 @@ var port = 3000,
 	http = require('http'),
     fs = require('fs');
 
+app.use(require('connect').bodyParser());
+
 // REST
 
 // List all posts
@@ -32,6 +34,9 @@ app.get('/comments', function(req, res){
 // Comment post
 app.post('/comments/:id', blog.createComment);
 
+// Delete comment
+app.delete('/comments/:id', blog.deleteComment);
+
 // Get /
 app.get('/', function(req, res){
 	fs.readFile('./index.html', function(err, html){
@@ -45,6 +50,15 @@ app.get('/', function(req, res){
 app.get('/scripts/:src', function(req, res){
 	fs.readFile('./' + req.params.src, function(err, html){
 		res.writeHeader(200, {"Content-Type": "text/javascript"});
+		res.write(html);
+		res.end();
+	});
+});
+
+// Get /styles/:src
+app.get('/styles/:src', function(req, res){
+	fs.readFile('./' + req.params.src, function(err, html){
+		res.writeHeader(200, {"Content-Type": "text/css"});
 		res.write(html);
 		res.end();
 	});

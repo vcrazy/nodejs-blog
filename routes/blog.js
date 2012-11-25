@@ -1,6 +1,4 @@
-var databaseUrl = 'blogdb',
-	collections = ['posts', 'comments'],
-	db = require('mongojs').connect(databaseUrl, collections);
+var db = require('mongojs').connect('blogdb', ['posts', 'comments']); // dbName, collections
 
 exports.getAllPosts = function(req, res){
 	db.posts.find({}, function(err, posts){
@@ -15,7 +13,7 @@ exports.getOnePost = function(req, res){
 };
 
 exports.createPost = function(req, res){
-	db.posts.save({data: 'n/a'}, function(err, post){
+	db.posts.save(req.body, function(err, post){
 		res.send(post);
 	});
 };
@@ -34,11 +32,19 @@ exports.deletePost = function(req, res){
 exports.getAllComments = function(req, res){
 	db.comments.find({}, function(err, comments){
 		res.send(comments);
-	});
+	}).sort({date: 1});
 };
 
 exports.createComment = function(req, res){
-	db.comments.save({data: 'comment', postId: req.params.id}, function(err, comment){
+	var data = req.body;
+	data.postId = req.params.id;
+	data.date = new Date;
+
+	db.comments.save(data, function(err, comment){
 		res.send(comment);
 	});
+};
+
+exports.deleteComment = function(req, res){
+	db.comments.remove({_id: req.params.id}, true);
 };
