@@ -1,17 +1,13 @@
 var db = require('mongojs').connect('blogdb', ['posts', 'comments']); // dbName, collections
 
+// List all posts
 exports.getAllPosts = function(req, res){
 	db.posts.find({}, function(err, posts){
 		res.send(posts);
 	}).sort({date: 1});
 };
 
-exports.getOnePost = function(req, res){
-	db.posts.findOne({_id: req.params.id}, function(err, post){
-		res.send(post);
-	});
-};
-
+// Create post
 exports.createPost = function(req, res){
 	var data = req.body;
 	data.date = new Date;
@@ -23,10 +19,10 @@ exports.createPost = function(req, res){
 	}
 };
 
+// Update post
 exports.updatePost = function(req, res){
 	var data = req.body;
 	data._id = objId(req.params.id);
-	data.date = new Date;
 
 	if(validate(data.text, res)){
 		db.posts.save(data, function(){
@@ -35,17 +31,51 @@ exports.updatePost = function(req, res){
 	}
 };
 
+// Delete post
 exports.deletePost = function(req, res){
-	db.posts.remove({_id: req.params.id}, true);
-	db.comments.remove({postId: req.params.id}, true);
+	var result = 0;
+
+	db.posts.remove({_id: objId(req.params.id)}, true, function(res){
+		result += res;
+
+		if(result == 2){
+			res.send({success: 1});
+		}
+	});
+	db.comments.remove({postId: req.params.id}, function(res){
+		result += res;
+
+		if(result == 2){
+			res.send({success: 1});
+		}
+	});
 };
 
-exports.getAllComments = function(req, res){
-	db.comments.find({}, function(err, comments){
-		res.send(comments);
-	}).sort({date: 1});
+// Show a post with its comments
+exports.getOnePostWithComments = function(req, res){
+	var result = 0,
+		data = {post: {}, comments: []};
+
+	db.posts.findOne({_id: objId(req.params.id)}, function(err, post){
+		result += 1;
+		data.post = post;
+
+		if(result == 2){
+			res.send(data);
+		}
+	});
+
+	db.comments.find({postId: req.params.id}, function(err, comments){
+		result += 1;
+		data.comments = comments;
+
+		if(result == 2){
+			res.send(data);
+		}
+	});
 };
 
+// Comment post
 exports.createComment = function(req, res){
 	var data = req.body;
 	data.postId = req.params.id;
@@ -58,6 +88,7 @@ exports.createComment = function(req, res){
 	}
 };
 
+// Delete comment
 exports.deleteComment = function(req, res){
 	db.comments.remove({_id: req.params.id}, true);
 };

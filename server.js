@@ -14,9 +14,6 @@ app.get('/posts', function(req, res){
 	blog.getAllPosts(req, res);
 });
 
-// List one post with its comments
-app.get('/posts/:id', blog.getOnePost);
-
 // Create post
 app.post('/posts', blog.createPost);
 
@@ -26,10 +23,8 @@ app.put('/posts/:id', blog.updatePost);
 // Delete post
 app.delete('/posts/:id', blog.deletePost);
 
-// List all comments
-app.get('/comments', function(req, res){
-	blog.getAllComments(req, res);
-});
+// Show a post with its comments
+app.get('/posts/:id', blog.getOnePostWithComments);
 
 // Comment post
 app.post('/comments/:id', blog.createComment);

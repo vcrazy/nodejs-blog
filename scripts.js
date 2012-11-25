@@ -1,9 +1,7 @@
 $(document).ready(function(){
-	// in the beginning get all posts & comments
+	// in the beginning get all posts
 	$.get('/posts', {}, function(posts){
-		$.get('/comments', {}, function(comments){
-			setPostsAndComments(posts, comments);
-		})
+		setPostsAndComments(posts, null);
 	});
 
 	function setPostsAndComments(posts, comments){
@@ -20,9 +18,11 @@ $(document).ready(function(){
 
 		$('#posts').append(
 			'<div class="post" id="post_' + post._id + '">' +
-				'<span class="post-text">' + post.text + '</span>' +
-				'<span class="post-id">' + post._id + '</span>' +
-				'<a href="#" class="edit-post">Edit</a>' +
+				'<span class="post-text">' + post.text + '</span> ' +
+				'<span class="post-id">' + post._id + '</span> ' +
+				'<a href="#" class="show-comments">Show this post with its comments</a> ' +
+				'<a href="#" class="edit-post">Edit</a> ' +
+				'<a href="#" class="delete-post">Delete</a> ' +
 				'<form class="add-comment" method="post" action="/comments/' + post._id + '">' +
 					'Add comment: <br />' +
 					'<textarea name="text"></textarea> <br />' +
@@ -35,8 +35,12 @@ $(document).ready(function(){
 	}
 
 	function appendComments(all_comments, post_id){
+		if(!all_comments){
+			return;
+		}
+
 		$.each(all_comments, function(index, comment){
-			if(post_id == comment.postId){
+			if(!post_id || post_id == comment.postId){
 				appendComment(comment);
 			}
 		});
@@ -47,7 +51,7 @@ $(document).ready(function(){
 			return;
 		}
 
-		if(comment.commentLevel == 1){
+		if(comment.commentLevel == 1){ // append to post
 			$('#post_' + comment.postId + ' .comments').append(
 				'<div class="comment" id="comment_' + comment._id + '">' + comment.text +
 					'<form class="add-comment" method="post" action="/comments/' + comment.postId + '">' +
@@ -59,7 +63,7 @@ $(document).ready(function(){
 					'</form>' +
 				'</div>'
 			);
-		}else{
+		}else{ // append to comment
 			$('#comment_' + comment.parentId).append(
 				'<div class="comment" id="comment_' + comment._id + '">' + comment.text +
 					'<form class="add-comment" method="post" action="/comments/' + comment.postId + '">' +
@@ -74,7 +78,8 @@ $(document).ready(function(){
 		}
 	}
 
-	// Frontend actions
+	// FRONTEND ACTIONS
+	// Create post
 	$('.add-post').live('submit', function(){
 		addPost(
 			$(this).attr('action'), {
@@ -86,9 +91,45 @@ $(document).ready(function(){
 		return false;
 	});
 
+	// Update post
+	$('.edit-post-form').live('submit', function(){
+		var text = $(this).parent().find('textarea').val();
+
+		$.ajax({
+			url: $(this).attr('action'),
+			type: 'PUT',
+			data: {text: text},
+			dataType: 'json'
+		});
+
+		$(this).parent().parent().parent().find('.edit-post').show();
+		$(this).parent().parent().find('.post-text').text(text);
+
+		return false;
+	});
+
+	// Delete post
+	$('.delete-post').live('click', function(){
+		if(!confirm('Are you sure?')){
+			return false;
+		}
+
+		$.ajax({
+			url: '/posts/' + $(this).parent().find('.post-id').text(),
+			type: 'DELETE'
+		});
+
+		$(this).parent().remove();
+
+		return false;
+	});
+
+	// Show a post with its comments
+
+	// Comment post
 	$('.add-comment').live('submit', function(){
 		addComment(
-			$(this).attr('action'), {
+			$(this).find('input[name="parentId"]').val(), {
 			text: $(this).find('textarea').val(),
 			parentId: $(this).find('input[name="parentId"]').val(),
 			commentLevel: $(this).find('input[name="commentLevel"]').val()
@@ -98,6 +139,10 @@ $(document).ready(function(){
 
 		return false;
 	});
+
+	// Delete comment
+
+	// END OF FRONTEND ACTIONS
 
 	$('.edit-post').live('click', function(){
 		var textElement = $(this).parent().find('.post-text'),
@@ -127,31 +172,35 @@ $(document).ready(function(){
 		return false;
 	});
 
-	$('.edit-post-form').live('submit', function(){
-		var text = $(this).parent().find('textarea').val();
+	$('.show-comments').live('click', function(){
+		var postId = $(this).parent().find('.post-id').text();
 
-		$.ajax({
-			url: $(this).attr('action'),
-			type: 'PUT',
-			data: {text: text},
-			dataType: 'json'
-		});
+		$('#posts').empty();
 
-		$(this).parent().parent().parent().find('.edit-post').show();
-		$(this).parent().parent().find('.post-text').text(text);
+		showPostComments(postId);
 
 		return false;
 	});
 
-	function addPost(url, data){
-		$.post(url, data, function(post){
-			appendPost(post);
+	function showPostComments(id){
+		$.get('/posts/' + id, {}, function(data){
+			setPostsAndComments([data.post], data.comments);
 		});
 	}
 
-	function addComment(url, data){
-		$.post(url, data, function(comment){
-			appendComment(comment);
+	function addPost(url, data){
+		$.post(url, data, function(post){
+			$('#posts').empty();
+
+			$.get('/posts', {}, function(posts){
+				setPostsAndComments(posts, null);
+			});
+		});
+	}
+
+	function addComment(id, data){
+		$.post('/comments/' + id, data, function(comment){
+			showPostComments(id);
 		});
 	}
 });
