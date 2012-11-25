@@ -184,7 +184,7 @@ $(document).ready(function(){
 			return false;
 		}
 
-		var postId = $(this).parent().find('.post-id').text(),
+		var postId = $(this).parent().find('.post-id:first').text(),
 			commentId = $(this).parent().find('.comment-id:first').text();
 
 		$.ajax({
@@ -210,7 +210,11 @@ $(document).ready(function(){
 		$('#posts').empty();
 
 		$.get('/posts/' + id, {}, function(data){
-			setPostsAndComments([data.post], data.comments);
+			if(data.post){
+				setPostsAndComments([data.post], data.comments);
+			}else{
+				getAllPosts();
+			}
 		});
 	}
 

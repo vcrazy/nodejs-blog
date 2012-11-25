@@ -22,7 +22,7 @@ exports.createPost = function(req, res){
 // Update post
 exports.updatePost = function(req, res){
 	var data = req.body;
-	data._id = objId(req.params.id);
+	data._id = (req.params.id);
 
 	if(validate(data.text, res)){
 		db.posts.save(data, function(){
@@ -33,70 +33,71 @@ exports.updatePost = function(req, res){
 
 // Delete post
 exports.deletePost = function(req, res){
-	var result = 0;
-
 	db.posts.remove({_id: objId(req.params.id)}, true, function(err, success){
-		result += !err;
-
-		if(result == 2){
+		db.comments.remove({postId: req.params.id}, function(err, success){
 			res.send({success: 1});
-		}
-	});
-	db.comments.remove({postId: req.params.id}, function(err, success){
-		result += !err;
-
-		if(result == 2){
-			res.send({success: 1});
-		}
+		});
 	});
 };
 
 // Show a post with its comments
 exports.getOnePostWithComments = function(req, res){
-	var result = 0,
-		data = {post: {}, comments: []};
+	var data = {post: {}, comments: []};
 
 	db.posts.findOne({_id: objId(req.params.id)}, function(err, post){
-		result += 1;
 		data.post = post;
 
-		if(result == 2){
-			res.send(data);
-		}
-	});
+		db.comments.find({postId: req.params.id}, function(err, comments){
+			data.comments = comments;
 
-	db.comments.find({postId: req.params.id}, function(err, comments){
-		result += 1;
-		data.comments = comments;
-
-		if(result == 2){
 			res.send(data);
-		}
-	});
+		});
+	}).sort({date: 1});
 };
 
 // Comment post
 exports.createComment = function(req, res){
-	var data = req.body;
+	var data = req.body,
+		parentId = data.parentId;
+
 	data.postId = req.params.id;
 	data.date = new Date;
 
 	if(validate(data.text, res)){
-		db.comments.save(data, function(err, comment){
-			res.send(comment);
-		});
+		if(parentId){
+			db.comments.findOne({_id: objId(parentId)}, function(err, comment){
+				if(err){
+					res.send({});
+					return;
+				}
+
+				if(parentId){
+					data.parentIds = comment ? (comment.parentIds || []) : [];
+					data.parentIds.push(parentId);
+				}
+
+				db.comments.save(data, function(err, comment){
+					res.send(comment);
+				});
+			});
+		}else{
+			db.comments.save(data, function(err, comment){
+				res.send(comment);
+			});
+		}
 	}
 };
 
 // Delete comment
 exports.deleteComment = function(req, res){
 	db.comments.remove({_id: objId(req.params.id)}, function(err, success){
-		if(!success){
-			return finishDeleteComment(res);
+		if(err){
+			res.send({});
+			return;
 		}
 
-		db.comments.find({parentId: req.params.id}, {_id: 1}, function(err, comments){
-			return findAndRemove(comments, res);
+		db.comments.remove({$in: {parentIds: req.params.id}}, function(err, success){
+			res.send({});
 		});
 	});
 };
@@ -113,32 +114,4 @@ function validate(field, res){
 
 function objId(id){
 	return new db.bson.ObjectID(id);
-}
-
-function findAndRemove(comments, res){
-	if(!comments.length){
-		return finishDeleteComment(res);
-	}
-
-	var arr = [],
-		arrIds = [];
-
-	for(var i in comments){
-		arr.push(comments[i]._id);
-		arrIds.push(objId(comments[i]._id));
-	}
-
-	db.comments.remove({$in: {_id: arrIds}}, function(err, success){
-		if(!success){
-			return finishDeleteComment(res);
-		}
-
-		db.comments.find({$in: {parentId: arr}}, {_id: 1}, function(err, comments){
-			findAndRemove(comments, res);
-		});
-	});
-}
-
-function finishDeleteComment(res){
-	res.send({});
 }
