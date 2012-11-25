@@ -14,8 +14,15 @@ $(document).ready(function(){
 	}
 
 	function appendPost(post){
+		if(post.error){
+			return;
+		}
+
 		$('#posts').append(
-			'<div class="post" id="post_' + post._id + '">' + post.text +
+			'<div class="post" id="post_' + post._id + '">' +
+				'<span class="post-text">' + post.text + '</span>' +
+				'<span class="post-id">' + post._id + '</span>' +
+				'<a href="#" class="edit-post">Edit</a>' +
 				'<form class="add-comment" method="post" action="/comments/' + post._id + '">' +
 					'Add comment: <br />' +
 					'<textarea name="text"></textarea> <br />' +
@@ -36,6 +43,10 @@ $(document).ready(function(){
 	}
 
 	function appendComment(comment){
+		if(comment.error){
+			return;
+		}
+
 		if(comment.commentLevel == 1){
 			$('#post_' + comment.postId + ' .comments').append(
 				'<div class="comment" id="comment_' + comment._id + '">' + comment.text +
@@ -84,6 +95,50 @@ $(document).ready(function(){
 		});
 
 		$(this).find('textarea').val('');
+
+		return false;
+	});
+
+	$('.edit-post').live('click', function(){
+		var textElement = $(this).parent().find('.post-text'),
+			text = $(textElement).text(),
+			id = $(this).parent().find('.post-id').text();
+
+		$(textElement).html(
+			'<form method="post" action="/posts/' + id + '" class="edit-post-form">' +
+				'<textarea name="text">' + text + '</textarea>' +
+				'<input type="hidden" name="previousText" value="' + text + '" />' +
+				'<input type="button" class="back" value="Back" />' +
+				'<input type="submit" />' +
+			'</form>'
+		);
+
+		$(this).hide();
+
+		return false;
+	});
+
+	$('.back').live('click', function(){
+		var text = $(this).parent().find('input[name="previousText"]').val();
+
+		$(this).parent().parent().parent().find('.edit-post').show();
+		$(this).parent().parent().text(text);
+
+		return false;
+	});
+
+	$('.edit-post-form').live('submit', function(){
+		var text = $(this).parent().find('textarea').val();
+
+		$.ajax({
+			url: $(this).attr('action'),
+			type: 'PUT',
+			data: {text: text},
+			dataType: 'json'
+		});
+
+		$(this).parent().parent().parent().find('.edit-post').show();
+		$(this).parent().parent().find('.post-text').text(text);
 
 		return false;
 	});

@@ -3,7 +3,7 @@ var db = require('mongojs').connect('blogdb', ['posts', 'comments']); // dbName,
 exports.getAllPosts = function(req, res){
 	db.posts.find({}, function(err, posts){
 		res.send(posts);
-	});
+	}).sort({date: 1});
 };
 
 exports.getOnePost = function(req, res){
@@ -13,15 +13,26 @@ exports.getOnePost = function(req, res){
 };
 
 exports.createPost = function(req, res){
-	db.posts.save(req.body, function(err, post){
-		res.send(post);
-	});
+	var data = req.body;
+	data.date = new Date;
+
+	if(validate(data.text, res)){
+		db.posts.save(data, function(err, post){
+			res.send(post);
+		});
+	}
 };
 
 exports.updatePost = function(req, res){
-	db.posts.save({_id: req.params.id, data: 'update data n/a'}, function(err, post){
-		res.send('postsdada');
-	});
+	var data = req.body;
+	data._id = objId(req.params.id);
+	data.date = new Date;
+
+	if(validate(data.text, res)){
+		db.posts.save(data, function(){
+			res.send({success: 1});
+		});
+	}
 };
 
 exports.deletePost = function(req, res){
@@ -40,11 +51,27 @@ exports.createComment = function(req, res){
 	data.postId = req.params.id;
 	data.date = new Date;
 
-	db.comments.save(data, function(err, comment){
-		res.send(comment);
-	});
+	if(validate(data.text, res)){
+		db.comments.save(data, function(err, comment){
+			res.send(comment);
+		});
+	}
 };
 
 exports.deleteComment = function(req, res){
 	db.comments.remove({_id: req.params.id}, true);
 };
+
+function validate(field, res){
+	var valid = field != '';
+
+	if(!valid){
+		res.send({error: true});
+	}
+
+	return valid;
+}
+
+function objId(id){
+	return new db.bson.ObjectID(id);
+}
