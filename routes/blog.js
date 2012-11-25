@@ -31,6 +31,12 @@ exports.deletePost = function(req, res){
 	db.comments.remove({postId: req.params.id}, true);
 };
 
+exports.getAllComments = function(req, res){
+	db.comments.find({}, function(err, comments){
+		res.send(comments);
+	});
+};
+
 exports.createComment = function(req, res){
 	db.comments.save({data: 'comment', postId: req.params.id}, function(err, comment){
 		res.send(comment);

@@ -24,6 +24,11 @@ app.put('/posts/:id', blog.updatePost);
 // Delete post
 app.delete('/posts/:id', blog.deletePost);
 
+// List all comments
+app.get('/comments', function(req, res){
+	blog.getAllComments(req, res);
+});
+
 // Comment post
 app.post('/comments/:id', blog.createComment);
 
