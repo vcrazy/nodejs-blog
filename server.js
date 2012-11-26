@@ -67,7 +67,6 @@ app.get('/templates/:src', function(req, res){
 		res.end();
 	});
 });
-
 // END OF REST
 
 // FUNCTIONS

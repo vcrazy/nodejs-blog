@@ -1,10 +1,22 @@
+loadTemplate = {}, setPostsAndComments = {};
+setComment = {}, deleteComment = {}, updatePost = {}, removePost = {};
+
 $(document).ready(function(){
 	var tmpl = {};
 
 	// in the beginning get all posts
 	getAllPosts();
 
-	function setPostsAndComments(posts, comments){
+	function refreshPosts(){
+		$.get('/posts', {}, function(posts){
+			setPostsAndComments(posts, null);
+			socket.emit('post.created', posts);
+		});
+	}
+
+	setPostsAndComments = function setPostsAndComments(posts, comments){
+		$('#posts').empty();
+
 		$.each(posts, function(index, post){
 			appendPost(post);
 			appendComments(comments, post._id);
@@ -72,8 +84,14 @@ $(document).ready(function(){
 		$(this).parent().parent().parent().find('.edit-post').show();
 		$(this).parent().parent().find('.post-text').text(text);
 
+		socket.emit('post.updated', {postId: $(this).attr('action').split('/').pop(), text: text});
+
 		return false;
 	});
+
+	updatePost = function updatePost(obj){
+		$('#post_' + obj.postId).find('.post-text').text(obj.text);
+	}
 
 	// Delete post
 	$('.delete-post').live('click', function(){
@@ -81,16 +99,23 @@ $(document).ready(function(){
 			return false;
 		}
 
+		var postId = $(this).parent().find('.post-id:first').text();
+
 		$.ajax({
-			url: '/posts/' + $(this).parent().find('.post-id:first').text(),
+			url: '/posts/' + postId,
 			type: 'DELETE',
 			success: function(){
-				getAllPosts();
+				removePost('post_' + postId);
+				socket.emit('post.deleted', 'post_' + postId);
 			}
 		});
 
 		return false;
 	});
+
+	removePost = function removePost(id){
+		$('#' + id).remove();
+	}
 
 	// Comment post
 	$('.add-comment').live('submit', function(){
@@ -103,6 +128,8 @@ $(document).ready(function(){
 		addComment($(this).attr('action').split('/').pop(), comment);
 
 		$(this).find('textarea').val('');
+
+		comment.postId = $(this).attr('action').split('/').pop();
 
 		return false;
 	});
@@ -142,17 +169,23 @@ $(document).ready(function(){
 			return false;
 		}
 
-		var commentId = $(this).parent().find('.comment-id:first').text();
+		var commentId = $(this).parent().find('.comment-id:first').text(),
+			id = $(this).parent().attr('id');
 
 		$.ajax({
 			url: '/comments/' + commentId,
 			type: 'DELETE'
 		});
 
-		$(this).parent().remove();
+		deleteComment(id);
+		socket.emit('comment.deleted', id);
 
 		return false;
 	});
+
+	deleteComment = function deleteComment(id){
+		$('#' + id).remove();
+	}
 
 	$('.show-all-posts').live('click', function(){
 		getAllPosts();
@@ -186,37 +219,38 @@ $(document).ready(function(){
 
 	function addPost(url, data){
 		$.post(url, data, function(post){
-			$('#posts').empty();
-
-			$.get('/posts', {}, function(posts){
-				setPostsAndComments(posts, null);
-			});
+			refreshPosts();
 		});
 	}
 
 	function addComment(id, data){
 		$.post('/comments/' + id, data, function(comment){
-			if(data.parentId){
-				loadTemplate('comments', [comment], '#comment_' + data.parentId);
-			}else{
-				loadTemplate('comments', [comment], '#post_' + id);
-			}
+			socket.emit('comment.created', comment);
+			setComment(comment);
 		});
+	}
+
+	setComment = function setComment(comment){
+		if(comment.parentId){
+			loadTemplate('comments', [comment], '#comment_' + comment.parentId);
+		}else{
+			loadTemplate('comments', [comment], '#post_' + comment.postId);
+		}
 	}
 
 	// List all posts
 	function getAllPosts(){
-		$('#posts').empty();
 		$('#add-post').show();
 
 		$.get('/posts', {}, function(posts){
+			$('#posts').empty();
 			loadTemplate('posts', posts, '#posts');
 		});
 	}
 
-	function loadTemplate(tplName, data, appendTo){
+	loadTemplate = function loadTemplate(tplName, data, appendTo){
 		if(tmpl[tplName]){
-			if(appendTo){
+			if(appendTo && $(appendTo).length){
 				$.tmpl(tmpl[tplName], data).appendTo(appendTo);
 			}
 			return;
@@ -227,22 +261,20 @@ $(document).ready(function(){
 			url: '/templates/' + tplName + '.html',
 			success: function(tpl){
 				tmpl[tplName] = tpl;
-				if(appendTo){
+				if(appendTo && $(appendTo).length){
 					$.tmpl(tpl, data).appendTo(appendTo);
 				}
 			}
 		});
 	}
 
-	(function(){
-		var templates = ['add_post', 'comments', 'posts', 'post', 'edit_post'];
+	var templates = ['add_post', 'comments', 'posts', 'post', 'edit_post'];
 
-		$.each(templates, function(index, tpl){
-			if(index == 0){
-				loadTemplate(tpl, [{}], '#home');
-			}else{
-				loadTemplate(tpl);
-			}
-		});
-	})();
+	$.each(templates, function(index, tpl){
+		if(index == 0){
+			loadTemplate(tpl, [{}], '#home');
+		}else{
+			loadTemplate(tpl);
+		}
+	});
 });
