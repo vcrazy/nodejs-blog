@@ -45,6 +45,11 @@ exports.getOnePostWithComments = function(req, res){
 	var data = {post: {}, comments: []};
 
 	db.posts.findOne({_id: objId(req.params.id)}, function(err, post){
+		if(err){
+			res.send(data);
+			return;
+		}
+
 		data.post = post;
 
 		db.comments.find({postId: req.params.id}, function(err, comments){
@@ -97,13 +102,13 @@ exports.deleteComment = function(req, res){
 		}
 
 		db.comments.remove({$in: {parentIds: req.params.id}}, function(err, success){
-			res.send({});
+			res.send({success: 1});
 		});
 	});
 };
 
 function validate(field, res){
-	var valid = field != '';
+	var valid = typeof field != 'undefined' && field != '';
 
 	if(!valid){
 		res.send({error: true});
@@ -113,5 +118,5 @@ function validate(field, res){
 }
 
 function objId(id){
-	return new db.bson.ObjectID(id);
+	return new db.bson.ObjectID(id.substr(0, 24));
 }
